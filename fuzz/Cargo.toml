@@ -8,7 +8,7 @@ publish = false
 cargo-fuzz = true
 
 [dependencies]
-libfuzzer-sys = "0.4"
+libfuzzer-sys = "0.4.0"
 pretty_assertions = "1.3.0"
 
 [dependencies.mdbook-i18n-helpers]
