@@ -1,0 +1,99 @@
+# Generate binary releases when a tag is pushed
+name: release
+
+on:
+  push:
+    tags:
+      - '*.*.*'
+
+jobs:
+
+  create-windows-binaries:
+
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install stable
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+
+    - name: Build mdbook-i18n-helpers
+      run: |
+        cargo build --release
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: mdbook-i18n-helpers.exe
+        path: target/release/mdbook-i18n-helpers.exe
+
+  create-unix-binaries:
+
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+          - os: macos-latest
+            target: x86_64-apple-darwin
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install Rust stable
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        toolchain: stable
+        target: ${{ matrix.target }}
+
+    - name: Install musl
+      if: contains(matrix.target, 'linux-musl')
+      run: |
+        sudo apt-get install musl-tools
+    - name: Build mdbook-i18n-helpers
+      run: |
+        RUSTFLAGS="-C target-feature=+crt-static" cargo build --release --target ${{ matrix.target }}
+    - name: Strip and move binary
+      run: |
+        strip target/${{ matrix.target }}/release/mdbook-i18n-helpers
+        # Binary name needs to be unique across artifacts (for release upload)
+        mv target/${{ matrix.target }}/release/mdbook-i18n-helpers mdbook-i18n-helpers.${{ matrix.target }}
+    - name: Sanity check version
+      run: |
+        VERSION=$(cargo pkgid | cut -d# -f2)
+        [[ "$VERSION" == "${{ github.ref_name }}" ]] || \
+        (echo "Cargo version $VERSION and tag ${{ github.ref_name}} differ" && exit 1)
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: mdbook-i18n-helpers-${{ matrix.target }}
+        path: mdbook-i18n-helpers.${{ matrix.target }}
+
+
+  release:
+    needs: [create-windows-binaries, create-unix-binaries]
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: ./binaries
+
+    - name: Create a release
+      uses: softprops/action-gh-release@v1
+      with:
+        # Artifacts are put in subfolders, hence the `*/*`
+        files: |
+          binaries/*/*
+        fail_on_unmatched_files: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
