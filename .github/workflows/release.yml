@@ -7,10 +7,9 @@ on:
       - '*.*.*' #Run when tag matches *.*.*, i.e. 0.0.1
 
 jobs:
-
   build:
     env:
-        RUST_BACKTRACE: 1
+      RUST_BACKTRACE: 1
     name: Build release artifacts for ${{ matrix.os }}
     strategy:
       matrix:
@@ -49,8 +48,6 @@ jobs:
         run: cargo fetch --target ${{ matrix.target }}
       - name: Release build
         run: cargo build --release --target ${{ matrix.target }}
-      - name: Checkout
-        uses: actions/checkout@v3
       - name: Package
         shell: bash
         run: |
@@ -62,6 +59,7 @@ jobs:
           if [ "${{ matrix.target }}" != "x86_64-pc-windows-msvc" ]; then
               strip "target/${{ matrix.target }}/release/${{ matrix.bin }}"
           fi
+          ls -al target/${{ matrix.target }}/release/
           cp "target/${{ matrix.target }}/release/${{ matrix.bin }}" "$release_name/"
           cp README.md LICENSE.md "$release_name/"
           tar czvf "$release_tar" "$release_name"
@@ -77,6 +75,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           draft: true
-          files: "mdbook-i18n-helpers*"
+          files: 'mdbook-i18n-helpers*'
         env:
           GITHUB_TOKEN: ${{ secrets.BOT_TOKEN }}
