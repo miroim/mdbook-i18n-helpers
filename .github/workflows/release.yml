@@ -37,6 +37,5 @@ jobs:
         with:
           bin: mdbook-i18n-helpers
           target: ${{ matrix.target }}
-          features: vendored-openssl
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
